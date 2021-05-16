@@ -36,14 +36,28 @@ module Langevo.PGmc
   , phonemeW
   ) where
 
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, maybeToList)
 import qualified Langevo.PIE as PIE
 import Data.Foldable (foldl')
+import Text.Megaparsec
+  ( Parsec
+  , MonadParsec (eof, lookAhead)
+  , parseError
+  , (<|>)
+  , customFailure
+  , choice
+  , chunk
+  , single, many, runParser, ParseErrorBundle
+  )
+import Text.Megaparsec.Char (space, space1)
 import Data.Text (Text)
 import Prelude hiding (Word)
+import Data.Void (Void)
 
 type Phoneme = Text
 type Word = [Phoneme]
+type ErrorData = Void
+type ShiftParser s = Parsec ErrorData s
 
 fromPIE :: PIE.Word -> Word
 fromPIE word = mconcat (foldl' (flip ($)) word shifts)
@@ -55,6 +69,7 @@ fromPIE word = mconcat (foldl' (flip ($)) word shifts)
       , dentalEpenthesis
       , consonShortening
       , overlonging
+      --, cowgill
       ]
     centumShift :: PIE.Word -> PIE.Word
     centumShift =
@@ -136,7 +151,28 @@ fromPIE word = mconcat (foldl' (flip ($)) word shifts)
             | null lastMorpheme || lastPhoneme `notElem` longVowels = word
             | otherwise = initMorphemes ++ [initPhonemes ++ [overlongLast]]
       in word'
-          
+    {-
+    cowgill :: PIE.Word -> PIE.Word
+    cowgill word =
+      let sonorants =
+            [ PIE.phonemeM
+            , PIE.phonemeN
+            , PIE.phonemeR
+            , PIE.phonemeL
+            ]
+          targetsH = [PIE.phonemeH2, PIE.phonemeH3]
+          iterMorphemes _ _ [] = []
+          iterMorphemes prev curr (head : tail) =
+            let (prev', curr', head') = iterMorpheme prev curr head
+            in head' : iterMorphemes prev' curr' tail
+          iterMorpheme prev curr [] = (Nothing, prev, curr, [])
+          iterMorpheme prev curr (next : tail)
+            | True = (prev', curr', next', rest)
+            | otherwise = (prev', curr', next', rest)
+            where
+              (prev', curr', next', rest) = iterMorpheme curr (Just next) tail
+      in undefined
+    -}
 
 phonemeA :: Phoneme
 phonemeA = "a"

@@ -27,6 +27,7 @@ library
   exposed-modules:
       Langevo.PGmc
       Langevo.PIE
+      Langevo.Shift
   other-modules:
       Paths_langevo
   hs-source-dirs:

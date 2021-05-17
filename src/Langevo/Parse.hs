@@ -59,9 +59,9 @@ translateTape parser = fromRight undefined . runParser translator "tape-trans"
       in fmap (const []) eof <|> parseCurr
 
 shiftTape :: [TapeParser Tape] -> Tape -> [Tape]
-shiftTape shifts initial = last : forms
+shiftTape shifts initial = forms
   where
     folder (last, forms) shift =
       let last' = translateTape shift last
-      in if last' == last then (last, forms) else (last', last : forms)
-    (last, forms) = foldl' folder (initial, []) shifts
+      in if last' == last then (last, forms) else (last', last' : forms)
+    (_, forms) = foldl' folder (initial, [initial]) shifts

@@ -54,7 +54,14 @@ module Langevo.PGmc
   ) where
 
 import qualified Langevo.PIE as PIE
-import Text.Megaparsec (chunk, single, choice)
+import Text.Megaparsec
+  ( chunk
+  , single
+  , choice
+  , (<|>)
+  , oneOf
+  , noneOf
+  , MonadParsec (eof))
 import Text.Megaparsec.Char (space1)
 import Langevo.Parse
   ( symForm
@@ -76,7 +83,16 @@ pieShifts :: [TapeParser Tape]
 pieShifts = shifts
   where
     shifts :: [TapeParser Tape]
-    shifts = [centumShift]
+    shifts =
+      [ centumShift
+      , sonEpenthesis
+      , dentalEpenthesis
+      , firstDentalSimpl
+      , secondDentalSimpl
+      , geminateSimpl
+      , overlonging
+      , cowgillsLaw
+      ]
     centumShift :: TapeParser Tape
     centumShift =
       let table =
@@ -85,6 +101,97 @@ pieShifts = shifts
             , (PIE.phonemeGjh, PIE.phonemeGh)
             ]
       in choice (fmap (\(inp, outp) -> fmap (const [outp]) (single inp)) table)
+    sonEpenthesis :: TapeParser Tape
+    sonEpenthesis =
+      let sonorants =
+            [ (PIE.phonemeMSyl, PIE.phonemeU, PIE.phonemeM)
+            , (PIE.phonemeNSyl, PIE.phonemeU, PIE.phonemeN)
+            , (PIE.phonemeRSyl, PIE.phonemeU, PIE.phonemeR)
+            , (PIE.phonemeLSyl, PIE.phonemeU, PIE.phonemeL)
+            , (PIE.phonemeMSylAcc, PIE.phonemeUAcc, PIE.phonemeM)
+            , (PIE.phonemeNSylAcc, PIE.phonemeUAcc, PIE.phonemeN)
+            , (PIE.phonemeRSylAcc, PIE.phonemeUAcc, PIE.phonemeR)
+            , (PIE.phonemeLSylAcc, PIE.phonemeUAcc, PIE.phonemeL)
+            ]
+          innerParse (inp, out0, out1) =
+            let replace = [out0, out1]
+            in fmap (const replace) (single inp)
+      in choice (fmap innerParse sonorants)
+    dentalEpenthesis :: TapeParser Tape 
+    dentalEpenthesis = do
+      let parseDental = single PIE.phonemeT
+            <|> single PIE.phonemeD
+            <|> single PIE.phonemeDh
+      first <- parseDental
+      single PIE.punctHyphen
+      second <- parseDental
+      return [first, PIE.phonemeS, second]
+    firstDentalSimpl :: TapeParser Tape
+    firstDentalSimpl = do
+      let parseDental = single PIE.phonemeT
+            <|> single PIE.phonemeD
+            <|> single PIE.phonemeDh
+      parseDental
+      single PIE.phonemeS
+      parseDental
+      return [PIE.phonemeT, PIE.phonemeS]
+    secondDentalSimpl :: TapeParser Tape
+    secondDentalSimpl = do
+      single PIE.phonemeT
+      single PIE.phonemeS
+      return [PIE.phonemeS, PIE.phonemeS]
+    geminateSimpl :: TapeParser Tape
+    geminateSimpl = do
+      let shortVowels =
+            [ PIE.phonemeA, PIE.phonemeAAcc
+            , PIE.phonemeE, PIE.phonemeEAcc
+            , PIE.phonemeI, PIE.phonemeIAcc
+            , PIE.phonemeO, PIE.phonemeOAcc
+            , PIE.phonemeU, PIE.phonemeUAcc
+            ]
+          consonants =
+            [ PIE.phonemeM, PIE.phonemeN, PIE.phonemeR, PIE.phonemeL
+            , PIE.phonemeW, PIE.phonemeY
+            , PIE.phonemeP, PIE.phonemeB, PIE.phonemeBh
+            , PIE.phonemeT, PIE.phonemeD, PIE.phonemeDh
+            , PIE.phonemeK, PIE.phonemeG, PIE.phonemeGh
+            , PIE.phonemeKw, PIE.phonemeGw, PIE.phonemeGwh
+            , PIE.phonemeS, PIE.phonemeH1, PIE.phonemeH2, PIE.phonemeH3
+            ]
+      preceeding <- noneOf shortVowels
+      consonant <- oneOf consonants
+      single consonant
+      return [preceeding, consonant]
+    overlonging :: TapeParser Tape
+    overlonging = do
+      let longVowelTable =
+            [ (PIE.phonemeAa, "â")
+            , (PIE.phonemeEe, "ê")
+            , (PIE.phonemeIi, "î")
+            , (PIE.phonemeOo, "ô")
+            , (PIE.phonemeUu, "û")
+            , (PIE.phonemeAaAcc, "ấ")
+            , (PIE.phonemeEeAcc, "ế")
+            , (PIE.phonemeIiAcc, "î́")
+            , (PIE.phonemeOoAcc, "ố")
+            , (PIE.phonemeUuAcc, "û́")
+            ]
+          makeLongParser (inp, outp) = fmap (const outp) (single inp) 
+      overlonged <- choice (fmap makeLongParser longVowelTable)
+      end <- chunk [PIE.punctSpace] <|> fmap (const []) eof 
+      return (overlonged : end)
+    cowgillsLaw :: TapeParser Tape
+    cowgillsLaw = do
+      let sonorants =
+            [ PIE.phonemeM
+            , PIE.phonemeN
+            , PIE.phonemeR
+            , PIE.phonemeL
+            ]
+      sonorant <- choice (fmap single sonorants)
+      laryngeal <- choice (fmap single [PIE.phonemeH2, PIE.phonemeH3])
+      labiovelarSon <- single PIE.phonemeW
+      return [sonorant, PIE.phonemeG, labiovelarSon]
 
 parse :: TextParser Tape
 parse = parseTape parsers

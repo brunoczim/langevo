@@ -61,7 +61,7 @@ import Text.Megaparsec
   , (<|>)
   , oneOf
   , noneOf
-  , MonadParsec (eof))
+  , MonadParsec (eof), optional)
 import Text.Megaparsec.Char (space1)
 import Langevo.Parse
   ( symForm
@@ -75,6 +75,7 @@ import Langevo.Parse
   , TapeParser
   , shiftTape
   )
+import Data.Maybe (maybeToList)
 
 fromPIE :: Tape -> Tape
 fromPIE = head . shiftTape pieShifts
@@ -92,6 +93,15 @@ pieShifts = shifts
       , geminateSimpl
       , overlonging
       , cowgillsLaw
+      , h1LossBeforeV
+      , h2LossBeforeE
+      , h2LossBeforeOther
+      , h3LossBeforeE
+      , h3LossBeforeOther
+      , hLossAfterV
+      , hVocaliz
+      , labiovelarMerge
+      , labiovelarDelab
       ]
     centumShift :: TapeParser Tape
     centumShift =
@@ -192,6 +202,148 @@ pieShifts = shifts
       laryngeal <- choice (fmap single [PIE.phonemeH2, PIE.phonemeH3])
       labiovelarSon <- single PIE.phonemeW
       return [sonorant, PIE.phonemeG, labiovelarSon]
+    h1LossBeforeV :: TapeParser Tape
+    h1LossBeforeV = do
+      let vowels =
+            [ PIE.phonemeA, PIE.phonemeAAcc, PIE.phonemeAa, PIE.phonemeAaAcc
+            , "â", "ấ"
+            , PIE.phonemeE, PIE.phonemeEAcc, PIE.phonemeEe, PIE.phonemeEeAcc
+            , "ê", "ế"
+            , PIE.phonemeI, PIE.phonemeIAcc, PIE.phonemeIi, PIE.phonemeIiAcc
+            , "î", "î́"
+            , PIE.phonemeO, PIE.phonemeOAcc, PIE.phonemeOo, PIE.phonemeOoAcc
+            , "ô", "ố"
+            , PIE.phonemeU, PIE.phonemeUAcc, PIE.phonemeUu, PIE.phonemeUuAcc
+            , "û", "û́"
+            ]
+      single PIE.phonemeH1
+      vowel <- choice (fmap single vowels)
+      return [vowel]
+    h2LossBeforeE :: TapeParser Tape
+    h2LossBeforeE = do
+      let vowelTable =
+            [ (PIE.phonemeE, PIE.phonemeA)
+            , (PIE.phonemeEAcc, PIE.phonemeAAcc)
+            , (PIE.phonemeEe, PIE.phonemeAa)
+            , (PIE.phonemeEeAcc, PIE.phonemeAaAcc)
+            , ("ê", "â")
+            , ("ế", "ấ")
+            ]
+          makeVowelParser (inp, outp) = fmap (const outp) (single inp)
+      single PIE.phonemeH2
+      newVowel <- choice (fmap makeVowelParser vowelTable)
+      return [newVowel]
+    h2LossBeforeOther :: TapeParser Tape
+    h2LossBeforeOther = do
+      let vowels =
+            [ PIE.phonemeA, PIE.phonemeAAcc, PIE.phonemeAa, PIE.phonemeAaAcc
+            , "â", "ấ"
+            , PIE.phonemeI, PIE.phonemeIAcc, PIE.phonemeIi, PIE.phonemeIiAcc
+            , "î", "î́"
+            , PIE.phonemeO, PIE.phonemeOAcc, PIE.phonemeOo, PIE.phonemeOoAcc
+            , "ô", "ố"
+            , PIE.phonemeU, PIE.phonemeUAcc, PIE.phonemeUu, PIE.phonemeUuAcc
+            , "û", "û́"
+            ]
+      single PIE.phonemeH2
+      vowel <- choice (fmap single vowels)
+      return [vowel]
+    h3LossBeforeE :: TapeParser Tape
+    h3LossBeforeE = do
+      let vowelTable =
+            [ (PIE.phonemeE, PIE.phonemeO)
+            , (PIE.phonemeEAcc, PIE.phonemeOAcc)
+            , (PIE.phonemeEe, PIE.phonemeOo)
+            , (PIE.phonemeEeAcc, PIE.phonemeOoAcc)
+            , ("ê", "ô")
+            , ("ế", "ố")
+            ]
+          makeVowelParser (inp, outp) = fmap (const outp) (single inp)
+      single PIE.phonemeH3
+      newVowel <- choice (fmap makeVowelParser vowelTable)
+      return [newVowel]
+    h3LossBeforeOther :: TapeParser Tape
+    h3LossBeforeOther = do
+      let vowels =
+            [ PIE.phonemeA, PIE.phonemeAAcc, PIE.phonemeAa, PIE.phonemeAaAcc
+            , "â", "ấ"
+            , PIE.phonemeI, PIE.phonemeIAcc, PIE.phonemeIi, PIE.phonemeIiAcc
+            , "î", "î́"
+            , PIE.phonemeO, PIE.phonemeOAcc, PIE.phonemeOo, PIE.phonemeOoAcc
+            , "ô", "ố"
+            , PIE.phonemeU, PIE.phonemeUAcc, PIE.phonemeUu, PIE.phonemeUuAcc
+            , "û", "û́"
+            ]
+      single PIE.phonemeH3
+      vowel <- choice (fmap single vowels)
+      return [vowel]
+    hLossAfterV :: TapeParser Tape
+    hLossAfterV = do
+      let vowelTable =
+            [ (PIE.phonemeA, PIE.phonemeAa)
+            , (PIE.phonemeAa, PIE.phonemeAa)
+            , (PIE.phonemeAAcc, PIE.phonemeAaAcc)
+            , (PIE.phonemeAaAcc, PIE.phonemeAaAcc)
+            , (PIE.phonemeE, PIE.phonemeEe)
+            , (PIE.phonemeEe, PIE.phonemeEe)
+            , (PIE.phonemeEAcc, PIE.phonemeEeAcc)
+            , (PIE.phonemeEeAcc, PIE.phonemeEeAcc)
+            , (PIE.phonemeI, PIE.phonemeIi)
+            , (PIE.phonemeIi, PIE.phonemeIi)
+            , (PIE.phonemeIAcc, PIE.phonemeIiAcc)
+            , (PIE.phonemeIiAcc, PIE.phonemeIiAcc)
+            , (PIE.phonemeO, PIE.phonemeOo)
+            , (PIE.phonemeOo, PIE.phonemeOo)
+            , (PIE.phonemeOAcc, PIE.phonemeOoAcc)
+            , (PIE.phonemeOoAcc, PIE.phonemeOoAcc)
+            , (PIE.phonemeU, PIE.phonemeUu)
+            , (PIE.phonemeUu, PIE.phonemeUu)
+            , (PIE.phonemeUAcc, PIE.phonemeUuAcc)
+            , (PIE.phonemeUuAcc, PIE.phonemeUuAcc)
+            ]
+          makeVowelParser (inp, outp) = fmap (const outp) (single inp)
+          laryngeals = [PIE.phonemeH1, PIE.phonemeH2, PIE.phonemeH3] 
+      newVowel <- choice (fmap makeVowelParser vowelTable)
+      choice (fmap single laryngeals)
+      return [newVowel]
+    hVocaliz :: TapeParser Tape
+    hVocaliz = do
+      let laryngeals = [PIE.phonemeH1, PIE.phonemeH2, PIE.phonemeH3] 
+      choice (fmap single laryngeals)
+      return ["ə"]
+    labiovelarMerge :: TapeParser Tape
+    labiovelarMerge = do
+      let velarTable =
+            [ (PIE.phonemeK, PIE.phonemeKw)
+            , (PIE.phonemeG, PIE.phonemeGw)
+            , (PIE.phonemeGh, PIE.phonemeGwh)
+            ]
+          makeVelarParser (inp, outp) = fmap (const outp) (single inp)
+      labiovelar <- choice (fmap makeVelarParser velarTable)
+      single PIE.phonemeW
+      return [labiovelar]
+    labiovelarDelab :: TapeParser Tape
+    labiovelarDelab = do
+      let velarTable =
+            [ (PIE.phonemeKw,PIE.phonemeK)
+            , (PIE.phonemeGw,PIE.phonemeG)
+            , (PIE.phonemeGwh,PIE.phonemeGh)
+            ]
+          makeVelarParser (inp, outp) = fmap (const outp) (single inp)
+          vowels =
+            [ PIE.phonemeU
+            , PIE.phonemeUAcc
+            , PIE.phonemeUu
+            , PIE.phonemeUuAcc
+            ]
+      velar <- choice (fmap makeVelarParser velarTable)
+      vowel <- choice (fmap single vowels)
+      maybeN <- fmap maybeToList (optional (single PIE.phonemeN))
+      plosive <- single PIE.phonemeT
+      return ([velar, vowel] ++ maybeN ++ [plosive])
+    
+      
+        
 
 parse :: TextParser Tape
 parse = parseTape parsers

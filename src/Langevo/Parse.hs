@@ -1,54 +1,67 @@
 module Langevo.Parse
-  (
+  ( mainSym
+  , symVariants
+  , symForm
+  , parseTape
+  , translateTape
+  , TextParser
+  , Symbol
+  , TapeParser
+  , Tape
+  , ErrorData
+  , Error
+  , shiftTape
   ) where
 
 import Data.Text (Text)
 import Text.Megaparsec
   ( Parsec
-  , MonadParsec (eof, lookAhead, try)
-  , parseError
+  , MonadParsec (eof, try)
   , (<|>)
-  , customFailure
   , choice
   , chunk
   , anySingle
   , manyTill
-  , runParser
   , ParseErrorBundle
+  , runParser
   )
-import Text.Megaparsec.Char (space, space1)
-import Prelude hiding (Word)
 import Data.Void (Void)
+import Data.Foldable (foldl')
+import Data.Either (fromRight)
 
 type Symbol = Text
 type Tape = [Symbol]
 type ErrorData = Void
+type Error s = ParseErrorBundle s ErrorData
 type TextParser = Parsec ErrorData Text
 type TapeParser = Parsec ErrorData Tape
 
-data SymbolForm = SymbolForm
-  { symbolMain :: Symbol
-  , symbolVariants :: [Symbol]
-  } deriving (Eq, Ord, Read, Show)
+mainSym :: Symbol -> TextParser a -> TextParser Tape
+mainSym res = fmap (const [res])
 
-forms :: Symbol -> [Symbol] -> SymbolForm
-forms main vars = SymbolForm main (main : vars)
+symVariants :: Symbol -> [Symbol] -> TextParser Tape
+symVariants main alts = mainSym main (choice (fmap chunk alts))
 
-parseSymbol :: [SymbolForm] -> TextParser Symbol
-parseSymbol = 
-  let parseForm :: SymbolForm -> TextParser Symbol
-      parseForm form = 
-        let choices = fmap chunk (symbolVariants form)
-        in fmap (const (symbolMain form)) (choice choices)
-  in choice . fmap parseForm
+symForm :: Symbol -> [Symbol] -> TextParser Tape
+symForm main alts = symVariants main (main : alts)
 
-parseTape :: [SymbolForm] -> TextParser Tape
-parseTape forms = manyTill (parseSymbol forms) eof
+parseTape :: [TextParser Tape] -> TextParser Tape
+parseTape parsers = fmap mconcat (manyTill (choice parsers) eof)
   
-translateTape :: TapeParser Tape -> TapeParser Tape
-translateTape parser =
-  let parseCurr = do
-        head <- try parser <|> fmap (: []) anySingle
-        tail <- translateTape parser
-        return (head ++ tail)
-  in fmap (const []) eof <|> parseCurr
+translateTape :: TapeParser Tape -> Tape -> Tape
+translateTape parser = fromRight undefined . runParser translator "tape-trans" 
+  where
+    translator = 
+      let parseCurr = do
+            head <- try parser <|> fmap (: []) anySingle
+            tail <- translator
+            return (head ++ tail)
+      in fmap (const []) eof <|> parseCurr
+
+shiftTape :: [TapeParser Tape] -> Tape -> [Tape]
+shiftTape shifts initial = last : forms
+  where
+    folder (last, forms) shift =
+      let last' = translateTape shift last
+      in if last' == last then (last, forms) else (last', last : forms)
+    (last, forms) = foldl' folder (initial, []) shifts

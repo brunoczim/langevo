@@ -7,6 +7,7 @@ import qualified Data.Text.IO as Text.IO
 import System.IO (stderr)
 import qualified Langevo.PIE as PIE
 import qualified Langevo.PGmc as PGmc
+import qualified Langevo.Parse as Parse
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
 
@@ -18,10 +19,10 @@ main = do
     _ -> do
       Text.IO.hPutStrLn stderr "Expected exactly one argument (PIE word)"
       exitFailure
-  parsedWord <- case runParser PIE.parseWord "PIE" word of
+  parsed <- case runParser PIE.parse "PIE" word of
     Right parsed -> return parsed
     Left error -> do
       Text.IO.hPutStrLn stderr (Text.pack (errorBundlePretty error))
       exitFailure 
-  let converted = PGmc.fromPIE parsedWord
-  Text.IO.putStrLn (Text.concat converted)
+  let converted = Parse.shiftTape PGmc.pieShifts parsed
+  mapM_ Text.IO.putStrLn (fmap Text.concat (reverse converted))

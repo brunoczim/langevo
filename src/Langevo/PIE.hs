@@ -1,14 +1,5 @@
 module Langevo.PIE
-  ( ErrorData
-  , Error
-  , Parser
-  , Phoneme
-  , Morpheme
-  , Word
-  , parseWords
-  , parseWord
-  , parseMorpheme
-  , parsePhoneme
+  ( parse
   , phonemeM
   , phonemeN
   , phonemeP
@@ -63,70 +54,17 @@ module Langevo.PIE
   , phonemeLSylAcc
   , phonemeMSylAcc
   , phonemeNSylAcc
+  , punctSpace
+  , punctHyphen
   ) where
 
-import Text.Megaparsec
-  ( Parsec
-  , MonadParsec (eof, lookAhead)
-  , parseError
-  , (<|>)
-  , customFailure
-  , choice
-  , chunk
-  , single, many, runParser, ParseErrorBundle
-  )
-import Text.Megaparsec.Char (space, space1)
-import Data.Text (Text)
-import Prelude hiding (Word)
-import Data.Void (Void)
+import Text.Megaparsec.Char (space1)
+import Langevo.Parse (symForm, parseTape, TextParser, Tape, Symbol, mainSym)
 
-type ErrorData = Void
-type Error = ParseErrorBundle Text ErrorData
-type Parser = Parsec ErrorData Text
-type Phoneme = Text
-type Morpheme = [Phoneme]
-type Word = [Morpheme]
-
-parseWords :: Parser [Word]
-parseWords =
-  let parseWordSeq = do
-        word <- parseWord
-        space
-        return word
-  in many parseWordSeq
-  
-parseWord :: Parser Word
-parseWord = do
-  first <- parseMorpheme
-  let makeNothing = fmap (const Nothing)
-      parseEof = makeNothing eof
-      parseNext = do
-        single '-'
-        parseWord
-      parseSpace = makeNothing space1
-  let parseEnd = parseEof <|> lookAhead parseSpace
-  maybeRest <- parseEnd <|> fmap Just parseNext
-  case maybeRest of
-    Just rest -> return (first : rest)
-    Nothing -> return [first]
-
-parseMorpheme :: Parser Morpheme
-parseMorpheme = do
-  first <- parsePhoneme
-  let makeNothing = fmap (const Nothing)
-      parseEof = makeNothing eof
-      parseHyphen = makeNothing (single '-')
-      parseSpace = makeNothing space1
-  let parseEnd = lookAhead (parseEof <|> parseHyphen <|> parseSpace)
-  maybeRest <- parseEnd <|> fmap Just parseMorpheme
-  case maybeRest of
-    Just rest -> return (first : rest)
-    Nothing -> return [first]
-
-parsePhoneme :: Parser Phoneme
-parsePhoneme = choice parsers
+parse :: TextParser Tape
+parse = parseTape parsers
   where
-    parsers :: [Parser Phoneme]
+    parsers :: [TextParser Tape]
     parsers =
       [ parseRSylAcc, parseLSylAcc, parseMSylAcc, parseNSylAcc
       , parseRSyl, parseLSyl, parseMSyl, parseNSyl
@@ -139,232 +77,233 @@ parsePhoneme = choice parsers
       , parseGw, parseGj, parseG, parseD, parseB
       , parseKw, parseKj, parseK, parseT, parseP
       , parseS
-      , parseY
-      , parseW
-      , parseH1
-      , parseH2
-      , parseH3
-      , parseH
+      , parseY, parseW
+      , parseH1, parseH2, parseH3, parseH
+      , parseHyphen, parseSpace
       ]
 
-    parseM :: Parser Phoneme
-    parseM = parseThisPhon phonemeM []
-    parseN :: Parser Phoneme
-    parseN = parseThisPhon phonemeN []
-    parseP :: Parser Phoneme
-    parseP = parseThisPhon phonemeP []
-    parseB :: Parser Phoneme
-    parseB = parseThisPhon phonemeB []
-    parseBh :: Parser Phoneme
-    parseBh = parseThisPhon phonemeBh ["bʱ"]
-    parseT :: Parser Phoneme
-    parseT = parseThisPhon phonemeT []
-    parseD :: Parser Phoneme
-    parseD = parseThisPhon phonemeD []
-    parseDh :: Parser Phoneme
-    parseDh = parseThisPhon phonemeDh ["dʱ"]
-    parseKj :: Parser Phoneme
-    parseKj = parseThisPhon phonemeKj ["ḱ"]
-    parseGj :: Parser Phoneme
-    parseGj = parseThisPhon phonemeGj ["ǵ", "ǵʰ", "ǵʱ"]
-    parseGjh :: Parser Phoneme
-    parseGjh = parseThisPhon phonemeGjh ["ǵʱ"]
-    parseK :: Parser Phoneme
-    parseK = parseThisPhon phonemeK []
-    parseG :: Parser Phoneme
-    parseG = parseThisPhon phonemeG []
-    parseGh :: Parser Phoneme
-    parseGh = parseThisPhon phonemeGh ["gʱ"]
-    parseKw :: Parser Phoneme
-    parseKw = parseThisPhon phonemeKw []
-    parseGw :: Parser Phoneme
-    parseGw = parseThisPhon phonemeGw []
-    parseGwh :: Parser Phoneme
-    parseGwh = parseThisPhon phonemeGwh ["gʷʱ", "gʷʰ", "gʱʷ"]
-    parseS :: Parser Phoneme
-    parseS = parseThisPhon phonemeS []
-    parseH1 :: Parser Phoneme
-    parseH1 = parseThisPhon phonemeH1 ["h1"]
-    parseH2 :: Parser Phoneme
-    parseH2 = parseThisPhon phonemeH2 ["h2"]
-    parseH3 :: Parser Phoneme
-    parseH3 = parseThisPhon phonemeH3 ["h3"]
-    parseH :: Parser Phoneme
-    parseH = parseThisPhon phonemeH []
-    parseR :: Parser Phoneme
-    parseR = parseThisPhon phonemeR []
-    parseL :: Parser Phoneme
-    parseL = parseThisPhon phonemeL []
-    parseY :: Parser Phoneme
-    parseY = parseThisPhon phonemeY []
-    parseW :: Parser Phoneme
-    parseW = parseThisPhon phonemeW []
-    parseA :: Parser Phoneme
-    parseA = parseThisPhon phonemeA []
-    parseE :: Parser Phoneme
-    parseE = parseThisPhon phonemeE []
-    parseI :: Parser Phoneme
-    parseI = parseThisPhon phonemeI []
-    parseO :: Parser Phoneme
-    parseO = parseThisPhon phonemeO []
-    parseU :: Parser Phoneme
-    parseU = parseThisPhon phonemeU []
-    parseAAcc :: Parser Phoneme
-    parseAAcc = parseThisPhon phonemeAAcc ["á"]
-    parseEAcc:: Parser Phoneme
-    parseEAcc = parseThisPhon phonemeEAcc ["é"]
-    parseIAcc :: Parser Phoneme
-    parseIAcc = parseThisPhon phonemeIAcc ["í"]
-    parseOAcc :: Parser Phoneme
-    parseOAcc = parseThisPhon phonemeOAcc ["ó"]
-    parseUAcc :: Parser Phoneme
-    parseUAcc = parseThisPhon phonemeUAcc ["ú"]
-    parseAa :: Parser Phoneme
-    parseAa = parseThisPhon phonemeAa ["ā"]
-    parseEe :: Parser Phoneme
-    parseEe = parseThisPhon phonemeEe ["ē"]
-    parseIi :: Parser Phoneme
-    parseIi = parseThisPhon phonemeIi ["ī"]
-    parseOo :: Parser Phoneme
-    parseOo = parseThisPhon phonemeOo ["ō"]
-    parseUu :: Parser Phoneme
-    parseUu = parseThisPhon phonemeUu ["ū"]
-    parseAaAcc :: Parser Phoneme
-    parseAaAcc = parseThisPhon phonemeAaAcc ["ā́", "ā́"]
-    parseEeAcc :: Parser Phoneme
-    parseEeAcc = parseThisPhon phonemeEeAcc ["ḗ", "ḗ"]
-    parseIiAcc :: Parser Phoneme
-    parseIiAcc = parseThisPhon phonemeIiAcc ["ī́", "ī́"]
-    parseOoAcc :: Parser Phoneme
-    parseOoAcc = parseThisPhon phonemeOoAcc ["ṓ", "ṓ"]
-    parseUuAcc :: Parser Phoneme
-    parseUuAcc = parseThisPhon phonemeUuAcc ["ū́", "ū́"]
-    parseRSyl :: Parser Phoneme
-    parseRSyl = parseThisPhon phonemeRSyl []
-    parseLSyl :: Parser Phoneme
-    parseLSyl = parseThisPhon phonemeLSyl []
-    parseMSyl :: Parser Phoneme
-    parseMSyl = parseThisPhon phonemeMSyl []
-    parseNSyl :: Parser Phoneme
-    parseNSyl = parseThisPhon phonemeNSyl []
-    parseRSylAcc :: Parser Phoneme
-    parseRSylAcc = parseThisPhon phonemeRSylAcc ["ŕ̥", "ŕ̥"]
-    parseLSylAcc :: Parser Phoneme
-    parseLSylAcc = parseThisPhon phonemeLSylAcc ["ĺ̥", "ĺ̥"]
-    parseMSylAcc :: Parser Phoneme
-    parseMSylAcc = parseThisPhon phonemeMSylAcc ["ḿ̥", "ḿ̥"]
-    parseNSylAcc :: Parser Phoneme
-    parseNSylAcc = parseThisPhon phonemeNSylAcc ["ń̥", "ń̥"]
-    parseThisPhon :: Phoneme -> [Phoneme] -> Parser Phoneme
-    parseThisPhon correct alts =
-      let choices = fmap chunk (correct : alts)
-      in fmap (const correct) (choice choices)
+    parseM :: TextParser Tape
+    parseM = symForm phonemeM []
+    parseN :: TextParser Tape
+    parseN = symForm phonemeN []
+    parseP :: TextParser Tape
+    parseP = symForm phonemeP []
+    parseB :: TextParser Tape
+    parseB = symForm phonemeB []
+    parseBh :: TextParser Tape
+    parseBh = symForm phonemeBh ["bʱ"]
+    parseT :: TextParser Tape
+    parseT = symForm phonemeT []
+    parseD :: TextParser Tape
+    parseD = symForm phonemeD []
+    parseDh :: TextParser Tape
+    parseDh = symForm phonemeDh ["dʱ"]
+    parseKj :: TextParser Tape
+    parseKj = symForm phonemeKj ["ḱ"]
+    parseGj :: TextParser Tape
+    parseGj = symForm phonemeGj ["ǵ", "ǵʰ", "ǵʱ"]
+    parseGjh :: TextParser Tape
+    parseGjh = symForm phonemeGjh ["ǵʱ"]
+    parseK :: TextParser Tape
+    parseK = symForm phonemeK []
+    parseG :: TextParser Tape
+    parseG = symForm phonemeG []
+    parseGh :: TextParser Tape
+    parseGh = symForm phonemeGh ["gʱ"]
+    parseKw :: TextParser Tape
+    parseKw = symForm phonemeKw []
+    parseGw :: TextParser Tape
+    parseGw = symForm phonemeGw []
+    parseGwh :: TextParser Tape
+    parseGwh = symForm phonemeGwh ["gʷʱ", "gʷʰ", "gʱʷ"]
+    parseS :: TextParser Tape
+    parseS = symForm phonemeS []
+    parseH1 :: TextParser Tape
+    parseH1 = symForm phonemeH1 ["h1"]
+    parseH2 :: TextParser Tape
+    parseH2 = symForm phonemeH2 ["h2"]
+    parseH3 :: TextParser Tape
+    parseH3 = symForm phonemeH3 ["h3"]
+    parseH :: TextParser Tape
+    parseH = symForm phonemeH []
+    parseR :: TextParser Tape
+    parseR = symForm phonemeR []
+    parseL :: TextParser Tape
+    parseL = symForm phonemeL []
+    parseY :: TextParser Tape
+    parseY = symForm phonemeY []
+    parseW :: TextParser Tape
+    parseW = symForm phonemeW []
+    parseA :: TextParser Tape
+    parseA = symForm phonemeA []
+    parseE :: TextParser Tape
+    parseE = symForm phonemeE []
+    parseI :: TextParser Tape
+    parseI = symForm phonemeI []
+    parseO :: TextParser Tape
+    parseO = symForm phonemeO []
+    parseU :: TextParser Tape
+    parseU = symForm phonemeU []
+    parseAAcc :: TextParser Tape
+    parseAAcc = symForm phonemeAAcc ["á"]
+    parseEAcc:: TextParser Tape
+    parseEAcc = symForm phonemeEAcc ["é"]
+    parseIAcc :: TextParser Tape
+    parseIAcc = symForm phonemeIAcc ["í"]
+    parseOAcc :: TextParser Tape
+    parseOAcc = symForm phonemeOAcc ["ó"]
+    parseUAcc :: TextParser Tape
+    parseUAcc = symForm phonemeUAcc ["ú"]
+    parseAa :: TextParser Tape
+    parseAa = symForm phonemeAa ["ā"]
+    parseEe :: TextParser Tape
+    parseEe = symForm phonemeEe ["ē"]
+    parseIi :: TextParser Tape
+    parseIi = symForm phonemeIi ["ī"]
+    parseOo :: TextParser Tape
+    parseOo = symForm phonemeOo ["ō"]
+    parseUu :: TextParser Tape
+    parseUu = symForm phonemeUu ["ū"]
+    parseAaAcc :: TextParser Tape
+    parseAaAcc = symForm phonemeAaAcc ["ā́", "ā́"]
+    parseEeAcc :: TextParser Tape
+    parseEeAcc = symForm phonemeEeAcc ["ḗ", "ḗ"]
+    parseIiAcc :: TextParser Tape
+    parseIiAcc = symForm phonemeIiAcc ["ī́", "ī́"]
+    parseOoAcc :: TextParser Tape
+    parseOoAcc = symForm phonemeOoAcc ["ṓ", "ṓ"]
+    parseUuAcc :: TextParser Tape
+    parseUuAcc = symForm phonemeUuAcc ["ū́", "ū́"]
+    parseRSyl :: TextParser Tape
+    parseRSyl = symForm phonemeRSyl []
+    parseLSyl :: TextParser Tape
+    parseLSyl = symForm phonemeLSyl []
+    parseMSyl :: TextParser Tape
+    parseMSyl = symForm phonemeMSyl []
+    parseNSyl :: TextParser Tape
+    parseNSyl = symForm phonemeNSyl []
+    parseRSylAcc :: TextParser Tape
+    parseRSylAcc = symForm phonemeRSylAcc ["ŕ̥", "ŕ̥"]
+    parseLSylAcc :: TextParser Tape
+    parseLSylAcc = symForm phonemeLSylAcc ["ĺ̥", "ĺ̥"]
+    parseMSylAcc :: TextParser Tape
+    parseMSylAcc = symForm phonemeMSylAcc ["ḿ̥", "ḿ̥"]
+    parseNSylAcc :: TextParser Tape
+    parseNSylAcc = symForm phonemeNSylAcc ["ń̥", "ń̥"]
+    parseHyphen :: TextParser Tape
+    parseHyphen = symForm punctHyphen []
+    parseSpace :: TextParser Tape
+    parseSpace = mainSym punctSpace space1 
 
-phonemeM :: Phoneme
+phonemeM :: Symbol
 phonemeM = "m"
-phonemeN :: Phoneme
+phonemeN :: Symbol
 phonemeN = "n"
-phonemeP :: Phoneme
+phonemeP :: Symbol
 phonemeP = "p"
-phonemeB :: Phoneme
+phonemeB :: Symbol
 phonemeB = "b"
-phonemeBh :: Phoneme
+phonemeBh :: Symbol
 phonemeBh = "bʰ"
-phonemeT :: Phoneme
+phonemeT :: Symbol
 phonemeT = "t"
-phonemeD :: Phoneme
+phonemeD :: Symbol
 phonemeD = "d"
-phonemeDh :: Phoneme
+phonemeDh :: Symbol
 phonemeDh = "dʰ"
-phonemeKj :: Phoneme
+phonemeKj :: Symbol
 phonemeKj = "ḱ"
-phonemeGj :: Phoneme
+phonemeGj :: Symbol
 phonemeGj = "ǵ"
-phonemeGjh :: Phoneme
+phonemeGjh :: Symbol
 phonemeGjh = "ǵʰ"
-phonemeK :: Phoneme
+phonemeK :: Symbol
 phonemeK = "k"
-phonemeG :: Phoneme
+phonemeG :: Symbol
 phonemeG = "g"
-phonemeGh :: Phoneme
+phonemeGh :: Symbol
 phonemeGh = "gʰ"
-phonemeKw :: Phoneme
+phonemeKw :: Symbol
 phonemeKw = "kʷ"
-phonemeGw :: Phoneme
+phonemeGw :: Symbol
 phonemeGw = "gʷ"
-phonemeGwh :: Phoneme
+phonemeGwh :: Symbol
 phonemeGwh = "gʷʰ"
-phonemeS :: Phoneme
+phonemeS :: Symbol
 phonemeS = "s"
-phonemeH1 :: Phoneme
+phonemeH1 :: Symbol
 phonemeH1 = "h₁"
-phonemeH2 :: Phoneme
+phonemeH2 :: Symbol
 phonemeH2 = "h₂"
-phonemeH3 :: Phoneme
+phonemeH3 :: Symbol
 phonemeH3 = "h₃"
-phonemeH :: Phoneme
+phonemeH :: Symbol
 phonemeH = "H"
-phonemeR :: Phoneme
+phonemeR :: Symbol
 phonemeR = "r"
-phonemeL :: Phoneme
+phonemeL :: Symbol
 phonemeL = "l"
-phonemeY :: Phoneme
+phonemeY :: Symbol
 phonemeY = "y"
-phonemeW :: Phoneme
+phonemeW :: Symbol
 phonemeW = "w"
-phonemeA :: Phoneme
+phonemeA :: Symbol
 phonemeA = "a"
-phonemeE :: Phoneme
+phonemeE :: Symbol
 phonemeE = "e"
-phonemeI :: Phoneme
+phonemeI :: Symbol
 phonemeI = "i"
-phonemeO :: Phoneme
+phonemeO :: Symbol
 phonemeO = "o"
-phonemeU :: Phoneme
+phonemeU :: Symbol
 phonemeU = "u"
-phonemeAAcc :: Phoneme
+phonemeAAcc :: Symbol
 phonemeAAcc = "á"
-phonemeEAcc:: Phoneme
+phonemeEAcc:: Symbol
 phonemeEAcc = "é"
-phonemeIAcc :: Phoneme
+phonemeIAcc :: Symbol
 phonemeIAcc = "í"
-phonemeOAcc :: Phoneme
+phonemeOAcc :: Symbol
 phonemeOAcc = "ó"
-phonemeUAcc :: Phoneme
+phonemeUAcc :: Symbol
 phonemeUAcc = "ú"
-phonemeAa :: Phoneme
+phonemeAa :: Symbol
 phonemeAa = "ā"
-phonemeEe :: Phoneme
+phonemeEe :: Symbol
 phonemeEe = "ē"
-phonemeIi :: Phoneme
+phonemeIi :: Symbol
 phonemeIi = "ī"
-phonemeOo :: Phoneme
+phonemeOo :: Symbol
 phonemeOo = "ō"
-phonemeUu :: Phoneme
+phonemeUu :: Symbol
 phonemeUu = "ū"
-phonemeAaAcc :: Phoneme
+phonemeAaAcc :: Symbol
 phonemeAaAcc = "ā́"
-phonemeEeAcc :: Phoneme
+phonemeEeAcc :: Symbol
 phonemeEeAcc = "ḗ"
-phonemeIiAcc :: Phoneme
+phonemeIiAcc :: Symbol
 phonemeIiAcc = "ī́"
-phonemeOoAcc :: Phoneme
+phonemeOoAcc :: Symbol
 phonemeOoAcc = "ṓ"
-phonemeUuAcc :: Phoneme
+phonemeUuAcc :: Symbol
 phonemeUuAcc = "ū́"
-phonemeRSyl :: Phoneme
+phonemeRSyl :: Symbol
 phonemeRSyl = "r̥"
-phonemeLSyl :: Phoneme
+phonemeLSyl :: Symbol
 phonemeLSyl = "l̥"
-phonemeMSyl :: Phoneme
+phonemeMSyl :: Symbol
 phonemeMSyl = "m̥"
-phonemeNSyl :: Phoneme
+phonemeNSyl :: Symbol
 phonemeNSyl = "n̥"
-phonemeRSylAcc :: Phoneme
+phonemeRSylAcc :: Symbol
 phonemeRSylAcc = "ŕ̥"
-phonemeLSylAcc :: Phoneme
+phonemeLSylAcc :: Symbol
 phonemeLSylAcc = "ĺ̥"
-phonemeMSylAcc :: Phoneme
+phonemeMSylAcc :: Symbol
 phonemeMSylAcc = "ḿ̥"
-phonemeNSylAcc :: Phoneme
+phonemeNSylAcc :: Symbol
 phonemeNSylAcc = "ń̥"
+punctSpace :: Symbol
+punctSpace = " "
+punctHyphen :: Symbol
+punctHyphen = "-"

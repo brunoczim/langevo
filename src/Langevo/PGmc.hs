@@ -1,4 +1,5 @@
 module Langevo.PGmc
+  {-
   ( phonemeA
   , phonemeAa
   , phonemeAn
@@ -51,8 +52,9 @@ module Langevo.PGmc
   , parse
   , fromPIE
   , pieShifts
-  ) where
+  ) -} where
 
+{-
 import qualified Langevo.PIE as PIE
 import Text.Megaparsec
   ( chunk
@@ -768,3 +770,4 @@ phonemeW :: Symbol
 phonemeW = "w"
 punctSpace :: Symbol
 punctSpace = " "
+-}

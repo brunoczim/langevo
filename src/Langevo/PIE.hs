@@ -1,4 +1,5 @@
 module Langevo.PIE
+  {-
   ( parse
   , phonemeM
   , phonemeN
@@ -56,8 +57,9 @@ module Langevo.PIE
   , phonemeNSylAcc
   , punctSpace
   , punctHyphen
-  ) where
+  )-} where
 
+{-
 import Text.Megaparsec.Char (space1)
 import Langevo.Parse (symForm, parseTape, TextParser, Tape, Symbol, mainSym)
 
@@ -307,3 +309,4 @@ punctSpace :: Symbol
 punctSpace = " "
 punctHyphen :: Symbol
 punctHyphen = "-"
+-}

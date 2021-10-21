@@ -1,5 +1,6 @@
 module Main where
 
+{-
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 import qualified Data.Text as Text
@@ -10,9 +11,11 @@ import qualified Langevo.PGmc as PGmc
 import qualified Langevo.Parse as Parse
 import Text.Megaparsec (runParser)
 import Text.Megaparsec.Error (errorBundlePretty)
+-}
 
 main :: IO ()
 main = do
+  {-
   args <- fmap (fmap Text.pack) getArgs
   word <- case args of
     [word] -> return word
@@ -26,3 +29,5 @@ main = do
       exitFailure 
   let converted = Parse.shiftTape PGmc.pieShifts parsed
   mapM_ Text.IO.putStrLn (fmap Text.concat (reverse converted))
+  -}
+  return ()

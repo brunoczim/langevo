@@ -26,6 +26,9 @@ source-repository head
 library
   exposed-modules:
       Langevo.Parse
+      Langevo.Parse.Error
+      Langevo.Parse.Generic
+      Langevo.Parse.Stream
       Langevo.PGmc
       Langevo.PIE
   other-modules:
@@ -33,7 +36,7 @@ library
   hs-source-dirs:
       src
   default-extensions:
-      OverloadedStrings
+      OverloadedStrings TypeFamilies FlexibleContexts
   build-depends:
       base >=4.7 && <5
     , megaparsec ==9.*
@@ -47,7 +50,7 @@ executable langevo-exe
   hs-source-dirs:
       app
   default-extensions:
-      OverloadedStrings
+      OverloadedStrings TypeFamilies FlexibleContexts
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
@@ -64,7 +67,7 @@ test-suite langevo-test
   hs-source-dirs:
       test
   default-extensions:
-      OverloadedStrings
+      OverloadedStrings TypeFamilies FlexibleContexts
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5

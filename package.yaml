@@ -26,6 +26,8 @@ dependencies:
 
 default-extensions:
   OverloadedStrings
+  TypeFamilies
+  FlexibleContexts
 
 library:
   source-dirs: src

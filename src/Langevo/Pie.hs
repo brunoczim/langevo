@@ -1,4 +1,4 @@
-module Langevo.PIE
+module Langevo.Pie
   ( parse
   , phonemeM
   , phonemeN

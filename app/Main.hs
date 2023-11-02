@@ -5,7 +5,7 @@ import System.Exit (exitFailure)
 import qualified Data.Text as Text
 import qualified Data.Text.IO as Text.IO
 import System.IO (stderr)
-import qualified Langevo.PIE as PIE
+import qualified Langevo.Pie as Pie
 import qualified Langevo.PGmc as PGmc
 import qualified Langevo.Parse as Parse
 import Text.Megaparsec (runParser)
@@ -17,9 +17,9 @@ main = do
   word <- case args of
     [word] -> return word
     _ -> do
-      Text.IO.hPutStrLn stderr "Expected exactly one argument (PIE word)"
+      Text.IO.hPutStrLn stderr "Expected exactly one argument (Pie word)"
       exitFailure
-  parsed <- case runParser PIE.parse "PIE" word of
+  parsed <- case runParser Pie.parse "Pie" word of
     Right parsed -> return parsed
     Left error -> do
       Text.IO.hPutStrLn stderr (Text.pack (errorBundlePretty error))

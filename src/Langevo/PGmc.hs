@@ -125,6 +125,7 @@ pieShifts = shifts
       , assimilateNw
       , assimilateLn
       , assimilateZm
+      , unstressedOwo
       ]
 
     centumShift :: DoubleTapeParser Tape
@@ -623,7 +624,8 @@ pieShifts = shifts
             single Pie.phonemeO
             return [Pie.phonemeOo]
       (previous, vowel) <- manyTill_ anySingle (oneOf vowels)
-      
+      (middle, replacement) <- manyTill_ anySingle parseOwo
+      return (previous ++ vowel : (middle ++ replacement))
 
 
 parse :: TextParser Tape
